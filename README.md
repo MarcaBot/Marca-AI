@@ -1,6 +1,3 @@
-`DEEP DIVE TO PDF METHOD`
-Note: kalau kamu lebih suka kode yang awal daripada yang saat ini dan kamu merasa bahwa ada error pada kode tutorial atau bagian tidak terbaca pada buku "Implementasi Chatbot Database Kecelakaan di Pematangsiantar", maka bisa minta lewat whatsapp: +6281274945189
-
 📚 Marca Smart AI Assistant
 Versi: 1.0.0 (UPDATED TO: 1.10)
 Pengembang: Marco Julius Andreas Bakkara
