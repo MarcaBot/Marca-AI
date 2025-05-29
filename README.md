@@ -1,5 +1,5 @@
 📚 Marca Smart AI Assistant
-Versi: 1.0.0 (UPDATED TO: 1.10)
+Versi: 1.0.0 
 Pengembang: Marco Julius Andreas Bakkara
 
 ⚠️ PERINGATAN HUKUM: LARANGAN KOMERSIAL TANPA IZIN
