@@ -1,6 +1,10 @@
 # <p align="center">DEEP DIVE TO PDF KNOWLEDGE-BASED AI</p>
 
-#### Apa itu PDF Knowledge-Based AI? saat ini mungkin kita melihat bahwa AI kita hanya belajar dari Supervised Learning dimana ketika kita mengatur dapat dimengerti bahwa ini hanyalah _klasifikasi_, bukan _clustering_. Disini, kita mencoba menggabungkan keduanya sehingga terlihat lebih modern. Spesifikasi laptop yang dibutuhkan nantinya adalah minimal RAM = 16 GB dan minimal disk = 10-20GB. Terimakasih. Apabila kamu merasa keberatan, maka instal lah versi sebelumnya.
+##### Apa itu PDF Knowledge-Based AI? saat ini mungkin kita melihat bahwa AI kita hanya belajar dari Supervised Learning dimana ketika kita mengatur dapat dimengerti bahwa ini hanyalah _klasifikasi_, bukan _clustering_. Disini, kita mencoba menggabungkan keduanya sehingga terlihat lebih modern. Spesifikasi laptop yang dibutuhkan nantinya adalah minimal RAM = 16 GB dan minimal disk = 10-20GB. Terimakasih. Apabila kamu merasa keberatan, maka instal lah versi sebelumnya.
+
+# <p align="center>Welcome To Marca Smart Assistant</p>
+
+##### Disclaimer: Marca Smart Assistant adalah draft AI saya, bukan berarti kamu dapat menggunakannya seperti chatgpt dimana seharusnya kita membuat sesuatu yang baru bukan memakainya hanya dengan API. Fokus kita adalah riset dan pengembangan, bukan Kustomisasi.
 
 📚 Marca Smart AI Assistant
 Versi: 1.10 (Updated Version with different file)
