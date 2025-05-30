@@ -6,22 +6,20 @@ from typing import List, Dict, Any, Optional
 from transformers import (
     MBartForConditionalGeneration,
     MBartTokenizer,
-    PreTrainedTokenizer,
-    LayoutLMv3Processor,
-    LayoutLMv3ForTokenClassification
+    PreTrainedTokenizer
 )
 from torch.utils.data import Dataset, DataLoader
 from sentence_transformers import SentenceTransformer
 import pdfplumber
 from multiprocessing import Pool
 import logging
+import re # Added for paragraph splitting
 
 # Setup logging untuk edukasi
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Constants
 MODEL_NAME = "facebook/mbart-large-50-many-to-many-mmt"
-LAYOUTLM_MODEL = "microsoft/layoutlmv3-base"
 MAX_LENGTH = 384
 BATCH_SIZE = 16
 LEARNING_RATE = 5e-5
@@ -49,6 +47,7 @@ class QADataset(Dataset):
                     logging.error(f"Error loading {file_path}: {e}")
     
     def _process_data(self, data: Any):
+        # Existing JSON processing logic remains the same
         if isinstance(data, list) and data and "paragraphs" in data[0]:
             for item in data:
                 if "paragraphs" in item:
@@ -78,6 +77,18 @@ class QADataset(Dataset):
                             "context": "",
                             "evidence": evidence
                         })
+        elif isinstance(data, dict) and "question" in data: # Handle single dict case
+             question = data.get("question", "")
+             answer = data.get("answer", "")
+             evidence = data.get("evidence", [])
+             if question and answer:
+                 self.data.append({
+                     "question": question,
+                     "answer": answer,
+                     "context": "",
+                     "evidence": evidence
+                 })
+
     
     def __len__(self):
         return len(self.data)
@@ -231,7 +242,11 @@ class SemanticSearcher:
             return
         
         questions = [qa_pair["question"] for qa_pair in self.qa_pairs]
-        translated_questions = [self._translate_to_english(q, source_lang=self.dataset_lang) for q in questions]
+        # Translate only if dataset language is not English
+        if self.dataset_lang != "en_XX":
+             translated_questions = [self._translate_to_english(q, source_lang=self.dataset_lang) for q in questions]
+        else:
+             translated_questions = questions # Assume questions are already in English if lang is en_XX
         
         self.embeddings = []
         for question in translated_questions:
@@ -252,16 +267,34 @@ class SemanticSearcher:
     def _combine_scores(self, query_embedding: np.ndarray, question_embeddings: np.ndarray, 
                        query_tokens: List[str], question_tokens: List[List[str]]) -> np.ndarray:
         """Combine semantic and token-based similarity scores."""
+        # Ensure embeddings are not empty and have compatible shapes
+        if question_embeddings.size == 0 or query_embedding.size == 0:
+            return np.array([])
+        if question_embeddings.shape[1] != query_embedding.shape[0]:
+             logging.error(f"Embedding shape mismatch: {question_embeddings.shape} vs {query_embedding.shape}")
+             return np.array([])
+
         cosine_scores = np.dot(question_embeddings, query_embedding) / (
             np.linalg.norm(question_embeddings, axis=1) * np.linalg.norm(query_embedding)
         )
         
         token_scores = []
+        query_token_set = set(query_tokens)
         for q_tokens in question_tokens:
-            common_tokens = len(set(query_tokens) & set(q_tokens)) / max(len(set(q_tokens)), 1)
+            q_token_set = set(q_tokens)
+            common_tokens = len(query_token_set & q_token_set) / max(len(q_token_set), 1)
             token_scores.append(common_tokens)
         
-        return 0.7 * cosine_scores + 0.3 * np.array(token_scores)
+        # Ensure scores are numpy arrays before combining
+        cosine_scores = np.nan_to_num(cosine_scores) # Handle potential NaNs
+        token_scores_np = np.array(token_scores)
+        
+        # Ensure shapes match for broadcasting or element-wise operation
+        if cosine_scores.shape != token_scores_np.shape:
+             logging.warning(f"Score shape mismatch: Cosine {cosine_scores.shape}, Token {token_scores_np.shape}. Using only cosine.")
+             return cosine_scores # Fallback to cosine scores if shapes mismatch
+
+        return 0.7 * cosine_scores + 0.3 * token_scores_np
     
     def search(self, query: str, top_k: int = 3, threshold: float = 0.6, source_lang: str = "auto") -> List[Dict[str, Any]]:
         """Enhanced semantic search with typo correction and long input handling."""
@@ -274,8 +307,12 @@ class SemanticSearcher:
             logging.info(f"Corrected query: {corrected_query}")
             
             query_segments = segment_text(corrected_query, max_len=100)
-            translated_segments = [self._translate_to_english(seg, source_lang) for seg in query_segments]
-            
+            # Translate only if source language is not English
+            if source_lang != "en_XX":
+                translated_segments = [self._translate_to_english(seg, source_lang) for seg in query_segments]
+            else:
+                translated_segments = query_segments # Assume query is already in English
+
             segment_embeddings = []
             for seg in translated_segments:
                 if seg in self.embedding_cache:
@@ -285,13 +322,24 @@ class SemanticSearcher:
                     self.embedding_cache[seg] = embedding
                     segment_embeddings.append(embedding)
             
+            if not segment_embeddings: # Handle case where translation/encoding fails
+                 logging.warning("Could not generate embeddings for query segments.")
+                 return []
+
             query_embedding = np.mean(segment_embeddings, axis=0)
             query_tokens = corrected_query.lower().split()
             question_tokens = [qa["question"].lower().split() for qa in self.qa_pairs]
             
             similarities = self._combine_scores(query_embedding, self.embeddings, query_tokens, question_tokens)
             
-            top_indices = np.argsort(-similarities)[:top_k]
+            if similarities.size == 0: # Handle empty similarities
+                 logging.warning("No similarity scores computed.")
+                 return []
+
+            # Ensure top_k is not greater than the number of available similarities
+            actual_top_k = min(top_k, len(similarities))
+            top_indices = np.argsort(-similarities)[:actual_top_k]
+            
             results = []
             for idx in top_indices:
                 similarity = similarities[idx]
@@ -301,7 +349,7 @@ class SemanticSearcher:
                         "answer": self.qa_pairs[idx]["answer"],
                         "context": self.qa_pairs[idx].get("context", ""),
                         "evidence": self.qa_pairs[idx].get("evidence", []),
-                        "similarity": similarity
+                        "similarity": float(similarity) # Ensure similarity is JSON serializable
                     })
             
             return results
@@ -336,58 +384,37 @@ class SmartAssistant:
             self.tokenizer = None
         
         logging.info("Initializing semantic searcher...")
-        self.searcher = SemanticSearcher(mbart_tokenizer=self.tokenizer, mbart_model=self.model, dataset_lang="en_XX")
+        # Assuming PDF content is in Indonesian (id_ID), set dataset_lang accordingly for translation
+        self.searcher = SemanticSearcher(mbart_tokenizer=self.tokenizer, mbart_model=self.model, dataset_lang="id_ID") 
         logging.info(f"Loading dataset from {data_dir}")
         self._load_dataset(data_dir)
         logging.info("SmartAssistant initialization complete")
     
-    def process_pdf(self, args):
-        filename, data_dir, processor, model, device = args
-        qa_pairs = []
+    # Removed process_pdf method as it's replaced by text extraction below
+
+    def _extract_paragraphs_from_pdf(self, pdf_path: str) -> List[str]:
+        """Extracts text from a PDF and splits it into paragraphs."""
+        paragraphs = []
         try:
-            with pdfplumber.open(os.path.join(data_dir, filename)) as pdf:
-                for page_number, page in enumerate(pdf.pages, start=1):
-                    lines = page.extract_text_lines()
-                    words, boxes = [], []
-                    for line in lines:
-                        text = line['text'].strip()
-                        if not text:
-                            continue
-                        box = [line['x0'], line['top'], line['x1'], line['bottom']]
-                        line_words = text.split()
-                        words.extend(line_words)
-                        boxes.extend([box] * len(line_words))
-                    if not words:
-                        continue
-                    encoding = processor(
-                        words,
-                        boxes=boxes,
-                        word_labels=[0] * len(words),
-                        return_tensors="pt",
-                        truncation=True,
-                        max_length=512
-                    )
-                    with torch.no_grad():
-                        outputs = model(**encoding.to(device))
-                    predictions = torch.argmax(outputs.logits, dim=-1).squeeze().tolist()
-                    current_paragraph = []
-                    for word, pred in zip(words, predictions):
-                        current_paragraph.append(word)
-                        if pred == 1 or word == words[-1]:
-                            paragraph = " ".join(current_paragraph).strip()
-                            if paragraph and len(paragraph) > 10:
-                                qa_pairs.append({
-                                    "question": paragraph,
-                                    "answer": paragraph,
-                                    "context": f"{filename} page {page_number}",
-                                    "evidence": []
-                                })
-                            current_paragraph = []
-            logging.info(f"Processed {filename} successfully")
+            with pdfplumber.open(pdf_path) as pdf:
+                full_text = ""
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        full_text += page_text + "\n"
+            
+            # Split into paragraphs based on double newlines, clean up whitespace
+            raw_paragraphs = re.split(r'\n\s*\n', full_text)
+            for para in raw_paragraphs:
+                cleaned_para = re.sub(r'\s+', ' ', para).strip()
+                # Filter out very short paragraphs (likely headers/footers/noise)
+                if cleaned_para and len(cleaned_para.split()) > 5: 
+                    paragraphs.append(cleaned_para)
+            logging.info(f"Extracted {len(paragraphs)} paragraphs from {os.path.basename(pdf_path)}")
         except Exception as e:
-            logging.error(f"Error processing {filename}: {e}")
-        return qa_pairs
-    
+            logging.error(f"Error extracting text from {pdf_path}: {e}")
+        return paragraphs
+
     def _load_dataset(self, data_dir: str):
         qa_pairs = []
         if not os.path.exists(data_dir):
@@ -397,24 +424,31 @@ class SmartAssistant:
         
         files_loaded = 0
         cache_file = os.path.join(data_dir, "pdf_paragraphs.json")
+        pdf_files_to_process = [f for f in os.listdir(data_dir) if f.startswith("unsup") and f.endswith(".pdf")]
         
-        # Load cached PDF paragraphs
+        # Load cached PDF paragraphs if cache exists and no new PDFs need processing
+        # (Simple check: if cache exists, assume it's up-to-date for this example)
         if os.path.exists(cache_file):
             try:
                 with open(cache_file, 'r', encoding='utf-8') as f:
                     qa_pairs.extend(json.load(f))
-                files_loaded += sum(1 for f in os.listdir(data_dir) if f.startswith("unsup") and f.endswith(".pdf"))
+                files_loaded += len(pdf_files_to_process) # Assume all PDFs were cached
                 logging.info(f"Loaded {len(qa_pairs)} QA pairs from cache")
             except Exception as e:
                 logging.error(f"Error loading cache: {e}")
+                # If cache is corrupted, proceed to re-process PDFs
+                qa_pairs = [] # Reset qa_pairs
+                if os.path.exists(cache_file):
+                     os.remove(cache_file) # Remove corrupted cache
         
-        # Process JSON files
+        # Process JSON files (existing logic)
         for filename in os.listdir(data_dir):
             if filename.endswith(".json") and filename != "pdf_paragraphs.json":
                 file_path = os.path.join(data_dir, filename)
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
+                        # --- Existing JSON processing logic --- 
                         if isinstance(data, list) and data and "paragraphs" in data[0]:
                             for item in data:
                                 if "paragraphs" in item:
@@ -455,43 +489,51 @@ class SmartAssistant:
                                     "context": "",
                                     "evidence": evidence
                                 })
+                        # --- End of existing JSON processing logic --- 
                     files_loaded += 1
                     logging.info(f"Loaded JSON file: {filename}")
                 except Exception as e:
                     logging.error(f"Error loading {file_path}: {e}")
         
-        # Process PDF files with LayoutLMv3 if cache doesn't exist
-        if not os.path.exists(cache_file):
-            try:
-                logging.info("Initializing LayoutLMv3 model...")
-                processor = LayoutLMv3Processor.from_pretrained(LAYOUTLM_MODEL)
-                model = LayoutLMv3ForTokenClassification.from_pretrained(LAYOUTLM_MODEL)
-                model.to(DEVICE)
-                logging.info("LayoutLMv3 model loaded successfully")
+        # Process PDF files using text extraction if cache wasn't loaded or needs update
+        if not os.path.exists(cache_file): # Process if cache doesn't exist
+            pdf_qa_pairs = []
+            if pdf_files_to_process:
+                logging.info(f"Processing {len(pdf_files_to_process)} PDF files using text extraction...")
+                for i, filename in enumerate(pdf_files_to_process):
+                    pdf_path = os.path.join(data_dir, filename)
+                    paragraphs = self._extract_paragraphs_from_pdf(pdf_path)
+                    for para in paragraphs:
+                        pdf_qa_pairs.append({
+                            "question": para, # Use paragraph as question
+                            "answer": para,   # Use paragraph as answer
+                            "context": f"{filename}", # Add filename as context
+                            "evidence": []
+                        })
+                    logging.info(f"Completed {i+1}/{len(pdf_files_to_process)} PDFs: {filename}")
                 
-                pdf_files = [f for f in os.listdir(data_dir) if f.startswith("unsup") and f.endswith(".pdf")]
-                if pdf_files:
-                    logging.info(f"Processing {len(pdf_files)} PDF files...")
-                    with Pool() as pool:
-                        results = pool.map(self.process_pdf, [(f, data_dir, processor, model, DEVICE) for f in pdf_files])
-                        for i, result in enumerate(results):
-                            qa_pairs.extend(result)
-                            files_loaded += 1
-                            logging.info(f"Completed {i+1}/{len(pdf_files)} PDFs")
-                    # Save to cache
+                # Save extracted paragraphs to cache
+                try:
                     with open(cache_file, 'w', encoding='utf-8') as f:
-                        json.dump(qa_pairs, f, ensure_ascii=False)
-                    logging.info(f"Saved {len(qa_pairs)} QA pairs to cache")
-                else:
-                    logging.info("No PDF files found to process")
-            except Exception as e:
-                logging.error(f"Error processing PDFs with LayoutLMv3: {e}")
+                        json.dump(pdf_qa_pairs, f, ensure_ascii=False, indent=2)
+                    logging.info(f"Saved {len(pdf_qa_pairs)} QA pairs from PDFs to cache: {cache_file}")
+                    qa_pairs.extend(pdf_qa_pairs) # Add newly processed pairs
+                    files_loaded += len(pdf_files_to_process) # Update count
+                except Exception as e:
+                     logging.error(f"Error saving PDF QA pairs to cache: {e}")
+            else:
+                logging.info("No PDF files found to process")
         
-        logging.info(f"Loaded {len(qa_pairs)} QA pairs from {files_loaded} files")
+        logging.info(f"Loaded a total of {len(qa_pairs)} QA pairs from {files_loaded} files")
         if qa_pairs:
+            # Set dataset language hint for searcher (assuming PDF is Indonesian)
+            self.searcher.dataset_lang = "id_ID" 
             self.searcher.add_qa_pairs(qa_pairs)
+        else:
+             logging.warning("No QA pairs loaded. Search functionality will be limited.")
     
     def train(self, data_dir: str = None, output_dir: str = "model", epochs: int = EPOCHS):
+        # Training logic remains the same
         if self.model is None or self.tokenizer is None:
             logging.error("mBART model not available for training.")
             return
@@ -544,32 +586,37 @@ class SmartAssistant:
         except Exception as e:
             logging.error(f"Error saving model: {e}")
     
-    def answer(self, question: str, similarity_threshold: float = 0.7, source_lang: str = "auto") -> str:
+    def answer(self, question: str, similarity_threshold: float = 0.6, source_lang: str = "auto") -> str:
+        # Answer logic remains largely the same, relies on searcher
         if not question.strip():
             return "Please ask a question."
         
-        search_results = self.searcher.search(question, top_k=1, threshold=similarity_threshold, source_lang=source_lang)
+        # Assume question is Indonesian if source_lang is auto or id_ID
+        effective_source_lang = source_lang if source_lang != "auto" else "id_ID"
+
+        search_results = self.searcher.search(question, top_k=1, threshold=similarity_threshold, source_lang=effective_source_lang)
         
         if search_results and search_results[0]["similarity"] >= similarity_threshold:
             result = search_results[0]
-            answer = result["answer"]
-            evidence = result["evidence"]
-            if evidence:
-                evidence_texts = [e.get("text", "") for e in evidence]
-                sources = [e.get("source", "") for e in evidence]
-                evidence_output = "\n".join(
-                    f"reason: {text}\n{source}" for text, source in zip(evidence_texts, sources) if text and source
-                )
-                return f"{answer}\n{evidence_output}"
-            return answer
+            answer = result["answer"] # The answer is the paragraph itself
+            context_info = result.get("context", "")
+            similarity_score = result.get("similarity", 0.0)
+            # Return the matched paragraph as the answer
+            return f"{answer} (Source: {context_info}, Similarity: {similarity_score:.2f})"
         
-        return self._generate_mbart_answer(question)
+        # Fallback to mBART generation if no good match found in PDF paragraphs
+        logging.info(f"No suitable paragraph found (threshold {similarity_threshold}). Falling back to mBART generation.")
+        return self._generate_mbart_answer(question, source_lang=effective_source_lang)
     
-    def _generate_mbart_answer(self, question: str) -> str:
+    def _generate_mbart_answer(self, question: str, source_lang: str) -> str:
+        # mBART generation logic remains the same
         if self.model is None or self.tokenizer is None:
             return "I'm sorry, I don't have an answer for that question at the moment."
         
         try:
+            # Set source language for tokenizer
+            self.tokenizer.src_lang = source_lang
+            
             question_segments = segment_text(question, max_len=100)
             outputs = []
             for seg in question_segments:
@@ -600,6 +647,7 @@ class SmartAssistant:
             return "I'm sorry, I couldn't generate an appropriate response at the moment."
     
     def set_target_language(self, lang_code: str):
+        # Language setting logic remains the same
         if lang_code in self.tokenizer.lang_code_to_id:
             self.target_lang = lang_code
             self.forced_bos_token_id = self.tokenizer.lang_code_to_id[lang_code]
@@ -610,6 +658,7 @@ class SmartAssistant:
             return False
     
     def save_research(self, data: str, filename: str = "research_output.txt") -> str:
+        # Save research logic remains the same
         try:
             output_dir = "research"
             os.makedirs(output_dir, exist_ok=True)
@@ -622,7 +671,15 @@ class SmartAssistant:
 
 def main():
     logging.info("Initializing Marca Smart Assistant...")
-    assistant = SmartAssistant(data_dir="data")
+    # Ensure data directory exists
+    if not os.path.exists("data"):
+        os.makedirs("data")
+        logging.info("Created data directory.")
+        # You might want to copy the PDF here if it's not already there
+        # import shutil
+        # shutil.copy("/path/to/your/unsup1.pdf", "data/unsup1.pdf")
+
+    assistant = SmartAssistant(data_dir="data", target_lang="id_ID") # Set target lang to Indonesian
     
     print("\n===================================")
     print("Marca Assistant (Type 'exit' to quit)")
@@ -639,7 +696,8 @@ def main():
                 assistant.set_target_language(lang_code)
                 continue
             
-            source_lang = "auto"
+            # Assume input is Indonesian unless specified otherwise
+            source_lang = "id_ID" 
             if ":" in user_input:
                 lang_part, question = user_input.split(":", 1)
                 lang_part = lang_part.strip()
@@ -650,18 +708,20 @@ def main():
             answer = assistant.answer(user_input, source_lang=source_lang)
             print(f"\nMarca: {answer}\n")
             
-            save_option = input("Do you want to save this research? (y/n): ")
-            if save_option.lower() == 'y':
-                research_data = f"Question: {user_input}\nAnswer: {answer}"
-                save_result = assistant.save_research(research_data)
-                print(save_result)
-                
+            # Removed save research prompt for simplicity in debugging
+            # save_option = input("Do you want to save this research? (y/n): ")
+            # if save_option.lower() == 'y':
+            #     research_data = f"Question: {user_input}\nAnswer: {answer}"
+            #     print(assistant.save_research(research_data))
+        except EOFError:
+             print("\nExiting...")
+             break
         except KeyboardInterrupt:
-            print("\nExiting Marca Assistant. Goodbye!")
-            break
+             print("\nExiting...")
+             break
         except Exception as e:
-            logging.error(f"An error occurred: {e}")
-            print("Let's continue with a new question.")
+            logging.error(f"An error occurred in the main loop: {e}")
+            print("An unexpected error occurred. Please try again.")
 
 if __name__ == "__main__":
     main()
