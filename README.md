@@ -1,4 +1,4 @@
-📚 Marca Smart AI Assistant
+<p align="center">📚 Marca Smart AI Assistant</p>
 Versi: 1.0.0 
 Pengembang: Marco Julius Andreas Bakkara
 
