@@ -87,8 +87,8 @@ Training dengan CPU bisa dilakukan, tapi akan lebih lambat.
 bash
 Copy
 Edit
-git clone https://github.com/marcobakkara/marca-ai-assistant.git
-cd marca-ai-assistant
+git clone https://github.com/MarcaBot/Marca-AI.git
+cd marca-AI
 2. Buat Virtual Environment
 bash
 Copy
