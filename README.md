@@ -183,7 +183,7 @@ Bisnis ilegal
 Monetisasi tanpa izin
 
 📬 Kontak
-Email: marco.bakkara@gmail.com
+Email: marcobakkara56@gmail.com
 
 GitHub: github.com/marcobakkara
 
