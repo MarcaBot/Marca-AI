@@ -1,4 +1,6 @@
-<p align="center">📚 Marca Smart AI Assistant</p>
+<p align="center">#DEEP DIVE TO PDF KNOWLEDGE-BASED AI</p>
+
+📚 Marca Smart AI Assistant
 Versi: 1.0.0 
 Pengembang: Marco Julius Andreas Bakkara
 
