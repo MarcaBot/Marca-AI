@@ -1,6 +1,6 @@
 # <p align="center">DEEP DIVE TO PDF KNOWLEDGE-BASED AI</p>
 
-##### Apa itu PDF Knowledge-Based AI? saat ini mungkin kita melihat bahwa AI kita hanya belajar dari Supervised Learning dimana ketika kita mengatur dapat dimengerti bahwa ini hanyalah _klasifikasi_, bukan _clustering_. Disini, kita mencoba menggabungkan keduanya sehingga terlihat lebih modern. Spesifikasi laptop yang dibutuhkan nantinya adalah minimal RAM = 16 GB dan minimal disk = 10-20GB. Terimakasih. Apabila kamu merasa keberatan, maka instal lah versi sebelumnya.
+##### Apa itu PDF Knowledge-Based AI? saat ini mungkin kita melihat bahwa AI kita hanya belajar dari Supervised Learning lewat JSON dimana kita lelah mengaturnya. Disini, kita mencoba menggabungkan keduanya sehingga terlihat lebih modern. Kita masih memakai Regex untuk paragraph splitting atau _pemisahan  pada PDF_ karena seluruh AI juga ketika dibuat pasti menggunakan sedikit regex, yang penting adalah tidak dalam inti AI belajar karena dia harus belajar tetap dengan data Supervised dan untuk itulah Segment Text, Hybrid Scoring, Smeantic Searcher, dan bahkan Levenshtein ada pada kode kita. Jadi, nanti question seharusnya tinggal diedit saja. Kamu cukup melakukan garis baru pada halaman mu untuk setiap paragraf nya. jangan lupa, Terimakasih. Apabila kamu merasa keberatan, maka instal lah versi sebelumnya.
 
 # <p align="center">🥇 Welcome To Marca Smart Assistant</p>
 
