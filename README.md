@@ -6,7 +6,7 @@
 
 ##### Disclaimer: Marca Smart Assistant adalah draft AI saya, bukan berarti kamu dapat menggunakannya seperti chatgpt dimana seharusnya kita membuat sesuatu yang baru bukan memakainya hanya dengan API. Fokus kita adalah riset dan pengembangan, bukan Kustomisasi.
 
-📚 Marca Smart AI Assistant
+```📚 Marca Smart AI Assistant```
 Versi: 1.10 (Updated Version with different file)
 Pengembang: Marco Julius Andreas Bakkara
 
