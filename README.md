@@ -1,10 +1,8 @@
-# <p align="center">DEEP DIVE TO PDF KNOWLEDGE-BASED AI</p>
-
-##### Apa itu PDF Knowledge-Based AI pada versi 1-.10 milik kita? saat ini mungkin kita melihat bahwa AI kita hanya belajar dari Supervised Learning lewat JSON dimana kita lelah mengaturnya. Disini, kita mencoba menggabungkan keduanya sehingga terlihat lebih modern dengan melakukan ekstraksi menggunakan PDFPLUMBER. Namun, Kita masih memakai Regex untuk paragraph splitting atau _pemisahan  pada PDF_ agar PDFPLUMBER tidak mengekstrak mentah-mentah seluruhnya. Kenapa harus ada regex? Karena belum ada model transformer yang mengatur paragraf sebagai jawaban untuk pemindaian json saat ini. Tenang, Seluruh AI juga ketika dibuat pasti menggunakan sedikit regex! yang penting adalah tidak dalam inti pembelajaran AI karena dia harus belajar tetap dengan data Supervised dan untuk itulah Segment Text, Hybrid Scoring, Smeantic Searcher, dan bahkan Levenshtein ada pada kode kita. Jadi, nanti question seharusnya tinggal diedit saja. Kamu cukup melakukan garis baru pada halaman mu untuk setiap paragraf nya di PDF mu agar ketika di ekstrak, regex mampu mengenal baris kosong sebagai Paragraf. Terimakasih.
-
 # <p align="center">🥇 Welcome To Marca Smart Assistant</p>
 
-##### Disclaimer: Marca Smart Assistant adalah draft AI saya, bukan berarti kamu dapat menggunakannya seperti chatgpt dimana seharusnya kita membuat sesuatu yang baru bukan memakainya hanya dengan API. Fokus kita adalah riset dan pengembangan, bukan Kustomisasi.
+##### Disclaimer: Marca Smart Assistant adalah draft AI saya, bukan berarti kamu dapat menggunakannya seperti chatgpt dimana seharusnya kita membuat sesuatu yang baru bukan memakainya hanya dengan API. Fokus kita adalah riset dan pengembangan, bukan Kustomisasi. Jadi, buatlah datamu sendiri yang tidak mengandung bias sesuai dengan langkah-langkah pembuatan data tertulis dan spek data yang kamu miliki.
+
+#### Note: Setiap Versi yang kita miliki memiliki penjelasan masing-masing yang kamu perlu membacanya sebelum memakainya, sebelum akhirnya digabungkan secara sempurna pada 15 Desember 2025 mendatang.
 
 ```📚 Marca Smart AI Assistant```
 Versi: 1.10 (Updated Version with different file)
@@ -189,6 +187,9 @@ GitHub: github.com/marcobakkara
 
 © 2025 Marco Julius Andreas Bakkara. All rights reserved.
 
+# <p align="center">DEEP DIVE TO PDF KNOWLEDGE-BASED AI</p>
+
+##### Apa itu PDF Knowledge-Based AI pada versi 1-.10 milik kita? saat ini mungkin kita melihat bahwa AI kita hanya belajar dari Supervised Learning lewat JSON dimana kita lelah mengaturnya. Disini, kita mencoba menggabungkan keduanya sehingga terlihat lebih modern dengan melakukan ekstraksi menggunakan PDFPLUMBER. Namun, Kita masih memakai Regex untuk paragraph splitting atau _pemisahan  pada PDF_ agar PDFPLUMBER tidak mengekstrak mentah-mentah seluruhnya. Kenapa harus ada regex? Karena belum ada model transformer yang mengatur paragraf sebagai jawaban untuk pemindaian json saat ini. Tenang, Seluruh AI juga ketika dibuat pasti menggunakan sedikit regex! yang penting adalah tidak dalam inti pembelajaran AI karena dia harus belajar tetap dengan data Supervised dan untuk itulah Segment Text, Hybrid Scoring, Smeantic Searcher, dan bahkan Levenshtein ada pada kode kita. Jadi, nanti question seharusnya tinggal diedit saja. Kamu cukup melakukan garis baru pada halaman mu untuk setiap paragraf nya di PDF mu agar ketika di ekstrak, regex mampu mengenal baris kosong sebagai Paragraf. Terimakasih.
 
 
 
