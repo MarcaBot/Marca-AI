@@ -2,7 +2,7 @@
 
 ##### Disclaimer: Marca Smart Assistant adalah draft AI saya, bukan berarti kamu dapat menggunakannya seperti chatgpt dimana seharusnya kita membuat sesuatu yang baru bukan memakainya hanya dengan API. Fokus kita adalah riset dan pengembangan, bukan Kustomisasi. Jadi, buatlah datamu sendiri yang tidak mengandung bias sesuai dengan langkah-langkah pembuatan data tertulis dan spek data yang kamu miliki.
 
-#### Note: Setiap Versi yang kita miliki memiliki penjelasan masing-masing yang kamu perlu membacanya sebelum memakainya, sebelum akhirnya digabungkan secara sempurna pada 15 Desember 2025 mendatang.
+##### Note: Setiap Versi yang kita miliki memiliki penjelasan masing-masing yang kamu perlu membacanya sebelum memakainya, sebelum akhirnya digabungkan secara sempurna pada 15 Desember 2025 mendatang.
 
 ```📚 Marca Smart AI Assistant```
 Versi: 1.10 (Updated Version with different file)
